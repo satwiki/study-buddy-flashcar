@@ -27,24 +27,24 @@ The app handles file uploads, content parsing, AI generation, and interactive st
 - **Success criteria**: Content is successfully extracted, truncated to fit token limits (~48,000 characters), and ready for AI processing
 
 ### Flashcard Generation
-- **Functionality**: AI creates question-answer pairs from uploaded content
-- **Insufficient Content**: Notify user if material is too short to 
+- **Functionality**: AI creates question-answer pairs from uploaded content using multi-model fallback (gpt-4o-mini → gpt-4o)
+- **Purpose**: Transform study materials into digestible Q&A format for active recall practice
 - **Trigger**: Automatic after content parsing completes
-- **Progression**: Content parsed → AI generates flashcards → Display card deck → User flips cards → Navigate through deck
-- **Success criteria**: Minimum 5-10 flashcards generated with clear Q&A format
+- **Progression**: Content parsed → AI generates flashcards (with automatic model fallback if token limits exceeded) → Display card deck → User flips cards → Navigate through deck
+- **Success criteria**: Minimum 5-10 flashcards generated with clear Q&A format, graceful handling of token limit errors
 
 ### Quiz Generation
-- **Functionality**: AI creates multiple-choice questions with correct answers
+- **Functionality**: AI creates multiple-choice questions with correct answers using multi-model fallback
 - **Purpose**: Self-assessment to identify knowledge gaps
-- **Primary Color**: Deep Indigo `oklch(0.35 0.15 265)` - Communicat
+- **Trigger**: Automatic after content parsing completes
 - **Progression**: Select quiz mode → Display question → User selects answer → Show immediate feedback → Display score
 - **Success criteria**: Minimum 5-10 questions generated with 3-4 options each, score tracking
 
 ## Edge Case Handling
 - **Empty/Invalid Files**: Display friendly error message suggesting valid content formats
-  - Muted (Light Gray `oklch(0.92 0.01 250)`): Muted text `oklch(0.50 0.02 265)` - Ratio 6.2:1 ✓
 - **Insufficient Content**: Notify user if material is too short to generate meaningful study content (< 100 words)
 - **AI Generation Errors**: Graceful fallback with retry option and clear error messaging
+- **Token Limit Errors**: Automatic fallback from gpt-4o-mini to gpt-4o when content exceeds model token limits
 - **Session Expiry**: Gentle warning that refreshing will lose current study materials
 
 ## Design Direction

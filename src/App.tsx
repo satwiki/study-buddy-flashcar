@@ -4,7 +4,7 @@ import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { UploadContent } from '@/components/UploadContent'
 import { LoadingGeneration } from '@/components/LoadingGeneration'
 import { StudyMode } from '@/components/StudyMode'
-import { llmPrompt, llm } from '@/lib/spark-utils'
+import { llmPrompt, llmWithFallback } from '@/lib/spark-utils'
 import type { StudyContent } from '@/lib/types'
 
 type AppState = 'welcome' | 'upload' | 'generating' | 'study'
@@ -66,7 +66,7 @@ Format:
   ]
 }`
 
-      const flashcardsResponse = await llm(flashcardsPrompt, 'gpt-4o-mini', true)
+      const flashcardsResponse = await llmWithFallback(flashcardsPrompt, true)
       let flashcardsData
       try {
         flashcardsData = JSON.parse(flashcardsResponse)
@@ -107,7 +107,7 @@ Format:
   ]
 }`
 
-      const quizResponse = await llm(quizPrompt, 'gpt-4o-mini', true)
+      const quizResponse = await llmWithFallback(quizPrompt, true)
       let quizData
       try {
         quizData = JSON.parse(quizResponse)
