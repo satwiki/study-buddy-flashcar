@@ -51,34 +51,42 @@ function App() {
 Study Material:
 ${truncatedContent}
 
-CRITICAL: You must return ONLY a valid JSON object with no additional text, markdown formatting, or code blocks.
+CRITICAL INSTRUCTIONS:
+1. Return ONLY a valid JSON object
+2. Do NOT add any text before or after the JSON
+3. Do NOT use markdown code blocks or formatting
+4. Start your response with { and end with }
+5. Ensure all strings are properly escaped
+6. Use double quotes for all keys and string values
+7. Do not use any control characters or unescaped newlines in strings
 
-The JSON must have this exact structure:
+Required JSON structure:
 {
   "flashcards": [
-    {
-      "id": "fc1",
-      "question": "Clear, concise question testing understanding of a key concept",
-      "answer": "Complete but concise answer in 2-3 sentences maximum"
-    }
+    {"id": "fc1", "question": "Question text here", "answer": "Answer text here"},
+    {"id": "fc2", "question": "Question text here", "answer": "Answer text here"}
   ]
 }
 
-Rules:
-- Create exactly 25 flashcards
-- Use sequential IDs: "fc1", "fc2", ... "fc25"
-- Questions must be clear and concise
-- Answers must be 2-3 sentences maximum
-- All strings must be properly escaped (escape quotes, newlines, etc.)
-- Do NOT include any text outside the JSON object
-- Do NOT wrap in markdown code blocks
-- Ensure the JSON is valid and parseable`
+Requirements:
+- Create exactly 25 flashcards (fc1 through fc25)
+- Questions: Clear and concise, testing key concepts
+- Answers: Complete but brief (2-3 sentences max)
+- Escape all special characters properly (quotes, newlines, etc.)
+- Make sure the JSON is complete and valid`
 
       const flashcardsResponse = await llmWithFallback(flashcardsPrompt, true)
       
-      const flashcardsData = JSON.parse(flashcardsResponse)
+      let flashcardsData
+      try {
+        flashcardsData = JSON.parse(flashcardsResponse)
+      } catch (parseError) {
+        console.error('Failed to parse flashcards JSON:', flashcardsResponse)
+        throw new Error(`Failed to parse flashcards: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+      }
       
       if (!flashcardsData.flashcards || !Array.isArray(flashcardsData.flashcards)) {
+        console.error('Invalid flashcards structure:', flashcardsData)
         throw new Error('Invalid flashcards format: missing or invalid flashcards array')
       }
       
@@ -88,6 +96,7 @@ Rules:
       
       for (const card of flashcardsData.flashcards) {
         if (!card.id || !card.question || !card.answer) {
+          console.error('Invalid flashcard:', card)
           throw new Error('Invalid flashcard structure: missing required fields')
         }
       }
@@ -100,38 +109,49 @@ Rules:
 Study Material:
 ${truncatedContent}
 
-CRITICAL: You must return ONLY a valid JSON object with no additional text, markdown formatting, or code blocks.
+CRITICAL INSTRUCTIONS:
+1. Return ONLY a valid JSON object
+2. Do NOT add any text before or after the JSON
+3. Do NOT use markdown code blocks or formatting
+4. Start your response with { and end with }
+5. Ensure all strings are properly escaped
+6. Use double quotes for all keys and string values
+7. Do not use any control characters or unescaped newlines in strings
 
-The JSON must have this exact structure:
+Required JSON structure:
 {
   "questions": [
     {
       "id": "q1",
-      "question": "Clear question testing understanding",
+      "question": "Question text here",
       "options": ["option1", "option2", "option3", "option4"],
       "correctAnswer": 0,
-      "justification": "Brief 1-2 sentence explanation of why the correct answer is right"
+      "justification": "Explanation text here"
     }
   ]
 }
 
-Rules:
-- Create exactly 25 questions
-- Use sequential IDs: "q1", "q2", ... "q25"
-- Each question must have exactly 4 options
-- correctAnswer must be 0, 1, 2, or 3 (the index of the correct option)
-- Incorrect options should be plausible but clearly wrong to someone who understands the material
-- Justification must be 1-2 sentences
-- All strings must be properly escaped (escape quotes, newlines, etc.)
-- Do NOT include any text outside the JSON object
-- Do NOT wrap in markdown code blocks
-- Ensure the JSON is valid and parseable`
+Requirements:
+- Create exactly 25 questions (q1 through q25)
+- Each question has exactly 4 options
+- correctAnswer is 0, 1, 2, or 3 (index of correct option)
+- Incorrect options should be plausible distractors
+- Justification: 1-2 sentences explaining the correct answer
+- Escape all special characters properly (quotes, newlines, etc.)
+- Make sure the JSON is complete and valid`
 
       const quizResponse = await llmWithFallback(quizPrompt, true)
       
-      const quizData = JSON.parse(quizResponse)
+      let quizData
+      try {
+        quizData = JSON.parse(quizResponse)
+      } catch (parseError) {
+        console.error('Failed to parse quiz JSON:', quizResponse)
+        throw new Error(`Failed to parse quiz questions: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`)
+      }
       
       if (!quizData.questions || !Array.isArray(quizData.questions)) {
+        console.error('Invalid quiz structure:', quizData)
         throw new Error('Invalid quiz format: missing or invalid questions array')
       }
       
@@ -142,6 +162,7 @@ Rules:
       for (const question of quizData.questions) {
         if (!question.id || !question.question || !Array.isArray(question.options) || 
             question.correctAnswer === undefined || !question.justification) {
+          console.error('Invalid quiz question:', question)
           throw new Error('Invalid quiz question structure: missing required fields')
         }
         if (question.options.length !== 4) {

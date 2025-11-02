@@ -43,13 +43,45 @@ function cleanJsonString(str: string): string {
   
   str = str.trim()
   
+  const jsonStart = str.indexOf('{')
+  const jsonEnd = str.lastIndexOf('}')
+  
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    str = str.substring(jsonStart, jsonEnd + 1)
+  }
+  
+  str = str.replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+  
   return str
 }
 
 function validateJson(jsonString: string): { valid: boolean; error?: string; data?: any } {
   try {
     const cleaned = cleanJsonString(jsonString)
+    
+    if (!cleaned || cleaned.length === 0) {
+      return {
+        valid: false,
+        error: 'Empty JSON response'
+      }
+    }
+    
+    if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) {
+      return {
+        valid: false,
+        error: 'Response is not a valid JSON object'
+      }
+    }
+    
     const parsed = JSON.parse(cleaned)
+    
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return {
+        valid: false,
+        error: 'Response must be a JSON object, not an array or primitive'
+      }
+    }
+    
     return { valid: true, data: parsed }
   } catch (error) {
     if (error instanceof SyntaxError) {
@@ -76,31 +108,46 @@ export async function llmWithFallback(
     const model = models[i]
     const isLastModel = i === models.length - 1
     
-    try {
-      const result = await llm(prompt, model, jsonMode)
-      
-      if (jsonMode) {
-        const validation = validateJson(result)
-        if (!validation.valid) {
-          throw new Error(validation.error || 'Invalid JSON response')
+    const maxRetries = jsonMode ? 3 : 1
+    
+    for (let retry = 0; retry < maxRetries; retry++) {
+      try {
+        const result = await llm(prompt, model, jsonMode)
+        
+        if (jsonMode) {
+          const validation = validateJson(result)
+          if (!validation.valid) {
+            if (retry < maxRetries - 1) {
+              console.warn(`Retry ${retry + 1}/${maxRetries}: ${validation.error}`)
+              await new Promise(resolve => setTimeout(resolve, 500))
+              continue
+            }
+            throw new Error(validation.error || 'Invalid JSON response')
+          }
+          return cleanJsonString(result)
         }
-        return cleanJsonString(result)
+        
+        return result
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        
+        if (isTokenLimitError(error) && !isLastModel) {
+          console.warn(`Model ${model} hit token limit, falling back to ${models[i + 1]}...`)
+          break
+        }
+        
+        if (retry < maxRetries - 1) {
+          console.warn(`Retry ${retry + 1}/${maxRetries} for model ${model}: ${lastError.message}`)
+          await new Promise(resolve => setTimeout(resolve, 500))
+          continue
+        }
+        
+        if (isLastModel) {
+          throw lastError
+        }
+        
+        break
       }
-      
-      return result
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-      
-      if (isTokenLimitError(error) && !isLastModel) {
-        console.warn(`Model ${model} hit token limit, falling back to ${models[i + 1]}...`)
-        continue
-      }
-      
-      if (isLastModel) {
-        throw lastError
-      }
-      
-      throw error
     }
   }
   
