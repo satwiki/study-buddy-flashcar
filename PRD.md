@@ -20,31 +20,33 @@ The app handles file uploads, content parsing, AI generation, and interactive st
 - **Success criteria**: Name is captured and displayed throughout the session
 
 ### Content Upload
-- **Functionality**: Accept TXT, PDF, DOCX files or public webpage URLs
+- **Functionality**: Accept TXT, PDF, DOCX files or up to 5 public webpage URLs (URL paste is default)
 - **Purpose**: Flexible input methods for various study material formats
 - **Trigger**: User clicks upload button or paste URL option from dashboard
-- **Progression**: Click upload → Select file/paste URL → Show upload progress → Parse content → Confirm success
-- **Success criteria**: Content is successfully extracted and ready for AI processing
+- **Progression**: Click upload → Select file/paste URL → Show upload progress → Parse content → Truncate if needed → Confirm success
+- **Success criteria**: Content is successfully extracted, truncated to fit token limits (~48,000 characters), and ready for AI processing
 
 ### Flashcard Generation
-- **Functionality**: AI creates question-answer pairs from uploaded content
+- **Functionality**: AI creates 25 question-answer pairs from uploaded content using gpt-4o-mini
 - **Purpose**: Active recall practice to strengthen memory retention
 - **Trigger**: Automatic after content parsing completes
 - **Progression**: Content parsed → AI generates flashcards → Display card deck → User flips cards → Navigate through deck
-- **Success criteria**: Minimum 5-10 flashcards generated with clear Q&A format
+- **Success criteria**: Exactly 25 flashcards generated with clear Q&A format, proper JSON parsing with error handling
 
 ### Quiz Generation
-- **Functionality**: AI creates multiple-choice questions with correct answers
-- **Purpose**: Self-assessment to identify knowledge gaps
+- **Functionality**: AI creates 25 multiple-choice questions with justifications using gpt-4o-mini
+- **Purpose**: Self-assessment to identify knowledge gaps with explanations
 - **Trigger**: User switches to quiz mode after content is processed
-- **Progression**: Select quiz mode → Display question → User selects answer → Show immediate feedback → Display score
-- **Success criteria**: Minimum 5-10 questions generated with 3-4 options each, score tracking
+- **Progression**: Select quiz mode → Display question → User selects answer → Show immediate feedback with justification → Display score
+- **Success criteria**: Exactly 25 questions generated with 4 options each, justifications for each answer, score tracking, proper JSON parsing with error handling
 
 ## Edge Case Handling
 - **Empty/Invalid Files**: Display friendly error message suggesting valid content formats
 - **URL Parsing Failures**: Show tooltip reminder about public URLs and offer file upload alternative
 - **Insufficient Content**: Notify user if material is too short to generate meaningful study content (< 100 words)
-- **AI Generation Errors**: Graceful fallback with retry option and clear error messaging
+- **Content Too Large**: Automatically truncate content to ~48,000 characters (~12,000 tokens) to fit LLM limits
+- **AI Generation Errors**: Graceful fallback with retry option, clear error messaging via toast notifications, and specific JSON parsing error handling
+- **Malformed JSON Responses**: Try-catch blocks with detailed error logging and user-friendly error messages
 - **Session Expiry**: Gentle warning that refreshing will lose current study materials
 
 ## Design Direction

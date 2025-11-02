@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster, toast } from 'sonner'
 import { WelcomeScreen } from '@/components/WelcomeScreen'
 import { UploadContent } from '@/components/UploadContent'
 import { LoadingGeneration } from '@/components/LoadingGeneration'
@@ -21,6 +21,17 @@ function App() {
     setState('upload')
   }
 
+  const truncateContent = (text: string, maxTokens: number = 12000): string => {
+    const estimatedCharsPerToken = 4
+    const maxChars = maxTokens * estimatedCharsPerToken
+    
+    if (text.length <= maxChars) {
+      return text
+    }
+    
+    return text.substring(0, maxChars) + '\n\n[Content truncated due to length...]'
+  }
+
   const handleContentUploaded = async (content: string) => {
     setState('generating')
     setGenerationProgress(0)
@@ -30,18 +41,22 @@ function App() {
       setGenerationProgress(20)
       await new Promise((resolve) => setTimeout(resolve, 500))
 
+      const truncatedContent = truncateContent(content)
+
       setGenerationMessage('Creating flashcards...')
       setGenerationProgress(40)
 
       const flashcardsPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 25 flashcard question-answer pairs.
 
 Study Material:
-${content}
+${truncatedContent}
 
 Return the result as a valid JSON object with a single property called "flashcards" that contains the flashcard list. Each flashcard should have:
 - id: a unique identifier (use sequential numbers like "fc1", "fc2", etc.)
 - question: a clear, concise question that tests understanding of a key concept
-- answer: a complete but concise answer
+- answer: a complete but concise answer (maximum 2-3 sentences)
+
+Important: Ensure all JSON strings are properly escaped. Do not include line breaks within question or answer strings.
 
 Format:
 {
@@ -51,8 +66,14 @@ Format:
   ]
 }`
 
-      const flashcardsResponse = await llm(flashcardsPrompt, 'gpt-4o', true)
-      const flashcardsData = JSON.parse(flashcardsResponse)
+      const flashcardsResponse = await llm(flashcardsPrompt, 'gpt-4o-mini', true)
+      let flashcardsData
+      try {
+        flashcardsData = JSON.parse(flashcardsResponse)
+      } catch (parseError) {
+        console.error('Failed to parse flashcards response:', flashcardsResponse)
+        throw new Error('Failed to parse flashcards. Please try again.')
+      }
 
       setGenerationMessage('Creating quiz questions...')
       setGenerationProgress(70)
@@ -60,16 +81,18 @@ Format:
       const quizPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 25 multiple-choice quiz questions.
 
 Study Material:
-${content}
+${truncatedContent}
 
 Return the result as a valid JSON object with a single property called "questions" that contains the question list. Each question should have:
 - id: a unique identifier (use sequential numbers like "q1", "q2", etc.)
 - question: a clear question that tests understanding
 - options: an array of exactly 4 possible answers
 - correctAnswer: the index (0-3) of the correct answer in the options array
-- justification: a brief explanation (1-2 sentences) of why the correct answer is right and why the other options are wrong
+- justification: a brief explanation (1-2 sentences) of why the correct answer is right
 
 Make sure the incorrect options are plausible but clearly wrong to someone who understands the material.
+
+Important: Ensure all JSON strings are properly escaped. Do not include line breaks within question, options, or justification strings.
 
 Format:
 {
@@ -84,8 +107,14 @@ Format:
   ]
 }`
 
-      const quizResponse = await llm(quizPrompt, 'gpt-4o', true)
-      const quizData = JSON.parse(quizResponse)
+      const quizResponse = await llm(quizPrompt, 'gpt-4o-mini', true)
+      let quizData
+      try {
+        quizData = JSON.parse(quizResponse)
+      } catch (parseError) {
+        console.error('Failed to parse quiz response:', quizResponse)
+        throw new Error('Failed to parse quiz questions. Please try again.')
+      }
 
       setGenerationProgress(90)
       await new Promise((resolve) => setTimeout(resolve, 300))
@@ -102,7 +131,9 @@ Format:
       setState('study')
     } catch (error) {
       console.error('Error generating content:', error)
-      setGenerationMessage('Failed to generate content. Please try again.')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate content. Please try again.'
+      setGenerationMessage(errorMessage)
+      toast.error(errorMessage)
       setTimeout(() => {
         setState('upload')
       }, 2000)
