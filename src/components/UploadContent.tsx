@@ -17,7 +17,7 @@ interface UploadContentProps {
 export function UploadContent({ userName, onContentUploaded }: UploadContentProps) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [url, setUrl] = useState('')
+  const [urls, setUrls] = useState<string[]>(['', '', '', '', ''])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,47 +56,68 @@ export function UploadContent({ userName, onContentUploaded }: UploadContentProp
   }
 
   const handleUrlSubmit = async () => {
-    if (!url.trim()) {
-      toast.error('Please enter a URL')
+    const validUrls = urls.filter(url => url.trim() !== '')
+    
+    if (validUrls.length === 0) {
+      toast.error('Please enter at least one URL')
       return
     }
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      toast.error('Please enter a valid URL starting with http:// or https://')
+    const invalidUrls = validUrls.filter(url => !url.startsWith('http://') && !url.startsWith('https://'))
+    if (invalidUrls.length > 0) {
+      toast.error('Please enter valid URLs starting with http:// or https://')
       return
     }
 
     setIsProcessing(true)
-    setProgress(30)
+    setProgress(10)
 
     try {
-      const response = await fetch(url)
-      setProgress(50)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch content')
+      const allContent: string[] = []
+      const progressStep = 80 / validUrls.length
+
+      for (let i = 0; i < validUrls.length; i++) {
+        const url = validUrls[i]
+        try {
+          const response = await fetch(url)
+          
+          if (!response.ok) {
+            toast.error(`Failed to fetch content from URL ${i + 1}`)
+            continue
+          }
+
+          const html = await response.text()
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(html, 'text/html')
+          const text = doc.body.innerText || doc.body.textContent || ''
+          
+          if (text.trim().length >= 100) {
+            allContent.push(text)
+          } else {
+            toast.error(`Content from URL ${i + 1} is too short`)
+          }
+
+          setProgress(10 + progressStep * (i + 1))
+        } catch (error) {
+          toast.error(`Failed to load URL ${i + 1}`)
+        }
       }
 
-      const html = await response.text()
-      setProgress(70)
-      
-      const parser = new DOMParser()
-      const doc = parser.parseFromString(html, 'text/html')
-      const text = doc.body.innerText || doc.body.textContent || ''
-      
-      if (text.trim().length < 100) {
-        toast.error('Content is too short. Please provide a page with at least 100 characters.')
+      if (allContent.length === 0) {
+        toast.error('No valid content could be extracted from the URLs')
         setIsProcessing(false)
         setProgress(0)
         return
       }
 
+      const combinedContent = allContent.join('\n\n---\n\n')
+      
       setProgress(100)
       setTimeout(() => {
-        onContentUploaded(text)
+        onContentUploaded(combinedContent)
       }, 300)
     } catch (error) {
-      toast.error('Failed to load webpage. Make sure the URL is public and accessible.')
+      toast.error('Failed to load webpages. Make sure the URLs are public and accessible.')
       setIsProcessing(false)
       setProgress(0)
     }
@@ -112,17 +133,56 @@ export function UploadContent({ userName, onContentUploaded }: UploadContentProp
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="file" className="w-full">
+          <Tabs defaultValue="url" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="file">
-                <UploadSimple className="mr-2" />
-                Upload File
-              </TabsTrigger>
               <TabsTrigger value="url">
                 <Link className="mr-2" />
                 Paste URL
               </TabsTrigger>
+              <TabsTrigger value="file">
+                <UploadSimple className="mr-2" />
+                Upload File
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="url" className="space-y-4 mt-6">
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Add up to 5 URLs. Webpages must be publicly accessible (not behind a login or paywall)
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-3">
+                {urls.map((url, index) => (
+                  <div key={index} className="space-y-2">
+                    <label htmlFor={`url-${index}`} className="text-sm font-medium">
+                      {index === 0 ? 'Webpage URL (required)' : `Webpage URL ${index + 1} (optional)`}
+                    </label>
+                    <Input
+                      id={`url-${index}`}
+                      type="url"
+                      placeholder="https://example.com/article"
+                      value={url}
+                      onChange={(e) => {
+                        const newUrls = [...urls]
+                        newUrls[index] = e.target.value
+                        setUrls(newUrls)
+                      }}
+                      disabled={isProcessing}
+                    />
+                  </div>
+                ))}
+
+                <Button
+                  onClick={handleUrlSubmit}
+                  className="w-full"
+                  disabled={isProcessing || urls[0].trim() === ''}
+                >
+                  Load Content
+                </Button>
+              </div>
+            </TabsContent>
 
             <TabsContent value="file" className="space-y-4 mt-6">
               <div className="border-2 border-dashed border-border rounded-lg p-8 text-center space-y-4 hover:border-primary/50 transition-colors">
@@ -148,49 +208,6 @@ export function UploadContent({ userName, onContentUploaded }: UploadContentProp
                 >
                   <UploadSimple className="mr-2" />
                   Choose File
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="url" className="space-y-4 mt-6">
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  The webpage must be publicly accessible (not behind a login or paywall)
-                </AlertDescription>
-              </Alert>
-              
-              <div className="space-y-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="space-y-2">
-                        <label htmlFor="url" className="text-sm font-medium flex items-center gap-2">
-                          Webpage URL
-                          <Info size={16} className="text-muted-foreground" />
-                        </label>
-                        <Input
-                          id="url"
-                          type="url"
-                          placeholder="https://example.com/article"
-                          value={url}
-                          onChange={(e) => setUrl(e.target.value)}
-                          disabled={isProcessing}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Make sure the webpage is public and accessible</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <Button
-                  onClick={handleUrlSubmit}
-                  className="w-full"
-                  disabled={isProcessing || !url.trim()}
-                >
-                  Load Content
                 </Button>
               </div>
             </TabsContent>

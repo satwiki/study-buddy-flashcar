@@ -33,7 +33,7 @@ function App() {
       setGenerationMessage('Creating flashcards...')
       setGenerationProgress(40)
 
-      const flashcardsPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 8 flashcard question-answer pairs.
+      const flashcardsPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 25 flashcard question-answer pairs.
 
 Study Material:
 ${content}
@@ -57,7 +57,7 @@ Format:
       setGenerationMessage('Creating quiz questions...')
       setGenerationProgress(70)
 
-      const quizPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 8 multiple-choice quiz questions.
+      const quizPrompt = llmPrompt`You are an educational content generator. Based on the following study material, create exactly 25 multiple-choice quiz questions.
 
 Study Material:
 ${content}
@@ -67,6 +67,7 @@ Return the result as a valid JSON object with a single property called "question
 - question: a clear question that tests understanding
 - options: an array of exactly 4 possible answers
 - correctAnswer: the index (0-3) of the correct answer in the options array
+- justification: a brief explanation (1-2 sentences) of why the correct answer is right and why the other options are wrong
 
 Make sure the incorrect options are plausible but clearly wrong to someone who understands the material.
 
@@ -77,7 +78,8 @@ Format:
       "id": "q1",
       "question": "...",
       "options": ["option1", "option2", "option3", "option4"],
-      "correctAnswer": 0
+      "correctAnswer": 0,
+      "justification": "..."
     }
   ]
 }`

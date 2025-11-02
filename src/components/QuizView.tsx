@@ -163,6 +163,36 @@ export function QuizView({ questions }: QuizViewProps) {
               </button>
             )
           })}
+
+          {showResult && currentQuestion.justification && (
+            <Card className="mt-4 bg-muted/50">
+              <CardContent className="pt-4">
+                <div className="flex gap-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      selectedOption === currentQuestion.correctAnswer
+                        ? 'bg-accent/10 text-accent'
+                        : 'bg-destructive/10 text-destructive'
+                    }`}
+                  >
+                    {selectedOption === currentQuestion.correctAnswer ? (
+                      <Check weight="bold" />
+                    ) : (
+                      <X weight="bold" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium mb-1">
+                      {selectedOption === currentQuestion.correctAnswer
+                        ? 'Correct!'
+                        : 'Incorrect'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{currentQuestion.justification}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </CardContent>
       </Card>
 

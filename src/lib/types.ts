@@ -9,6 +9,7 @@ export interface QuizQuestion {
   question: string
   options: string[]
   correctAnswer: number
+  justification: string
 }
 
 export interface StudyContent {
