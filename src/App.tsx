@@ -21,7 +21,7 @@ function App() {
     setState('upload')
   }
 
-  const truncateContent = (text: string, maxTokens: number = 12000): string => {
+  const truncateContent = (text: string, maxTokens: number = 100000): string => {
     const estimatedCharsPerToken = 4
     const maxChars = maxTokens * estimatedCharsPerToken
     
